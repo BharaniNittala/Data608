@@ -1,0 +1,170 @@
+---
+title: 'Data 608: Assignment 1'
+author: "Bharani Nittala"
+date: "`r Sys.Date()`"
+always_allow_html: true
+output:
+  pdf_document: default
+  openintro::lab_report: default
+  html_document:
+    includes:
+      in_header: header.html
+    css: ./lab.css
+    highlight: pygments
+    theme: cerulean
+    toc: yes
+    toc_float: yes
+  word_document:
+    toc: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r}
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+suppressMessages(suppressWarnings(library(RColorBrewer)))
+```
+
+
+**Principles of Data Visualization and Introduction to ggplot2**
+
+I have provided you with data about the 5,000 fastest growing companies in the US, as compiled by Inc. magazine. lets read this in:
+
+```{r}
+
+inc <- read.csv("https://raw.githubusercontent.com/charleyferrari/CUNY_DATA_608/master/module1/Data/inc5000_data.csv", header= TRUE)
+
+```
+
+And lets preview this data:
+
+```{r}
+
+head(inc)
+
+```
+
+```{r}
+
+summary(inc)
+
+```
+
+Think a bit on what these summaries mean. Use the space below to add some more relevant non-visual exploratory information you think helps you understand this data:
+
+```{r}
+#Understand the structure of the dataframe apart from summary statistics
+str(inc)
+```
+
+```{r}
+#Understand mean, median and standard deviation of the dataframe:
+
+mean(inc$Growth_Rate)
+mean(inc$Revenue)
+mean(inc$Employees, na.rm = TRUE)#A few companies have missing employee counts
+
+median(inc$Growth_Rate)
+median(inc$Revenue)
+median(inc$Employees, na.rm = TRUE)#A few companies have missing employee counts
+
+
+sd(inc$Growth_Rate)
+sd(inc$Revenue)
+sd(inc$Employees, na.rm = TRUE)#A few companies have missing employee counts
+
+#We can also do IQR(Q3-Q1) in case the data is skewed
+
+IQR(inc$Growth_Rate)
+IQR(inc$Revenue)
+IQR(inc$Employees, na.rm = TRUE)
+
+```
+
+## Question 1
+
+Create a graph that shows the distribution of companies in the dataset by State (ie how many are in each state). There are a lot of States, so consider which axis you should use. This visualization is ultimately going to be consumed on a 'portrait' oriented screen (ie taller than wide), which should further guide your layout choices.
+
+For all three questions, we are asked to give distributions of categorical data: States or Industries. The simple Bar Chart seems to be the most intuitive way to present the information. I used horizontal bars to make the charts fit the portrait orientation better.
+
+```{r}
+
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+suppressMessages(suppressWarnings(library(RColorBrewer)))
+
+state_level  <- inc %>% group_by(State) %>% summarise(total = n()) %>% arrange(desc(total))
+
+q1 <- ggplot(data = state_level, aes(x=reorder(State, total) , y=total, fill=total)) +
+      geom_bar(stat="identity", position=position_dodge(), colour="black", width = 0.9) +  
+      coord_flip() +   scale_fill_gradient(low="yellow", high="tomato3") + scale_y_continuous(breaks = scales::pretty_breaks(n = 10)) +
+      guides(fill=FALSE) +
+      ggtitle("Distribution of Companies by State") +
+      xlab("State") + ylab("Number of Companies")   
+
+q1
+
+```
+
+
+I think it's key to understand the most important signal from the dataframe than having mixed signals with rainbow colors popping from the chart. Hence, I used color combination that makes the important signal pop in the chart. 
+
+## Quesiton 2
+
+Lets dig in on the state with the 3rd most companies in the data set. Imagine you work for the state and are interested in how many people are employed by companies in different industries. Create a plot that shows the average and/or median employment by industry for companies in this state (only use cases with full data, use R's `complete.cases()` function.) In addition to this, your graph should show how variable the ranges are, and you should deal with outliers.
+
+New York is in third place for most companies in the dataframe. To show variable ranges, I leveraged mean and median and filtered the outliers that are 1.5 times or higher than IQR.
+
+```{r}
+library(ggplot2)
+
+ny_state <- inc  %>% filter(State == 'NY', complete.cases(.)) %>% arrange(Industry) %>% select(Industry, Employees) 
+ny_state <- ny_state %>% group_by(Industry) %>% filter(!(abs(Employees - median(Employees)) > 1.5*IQR(Employees)))
+ny_state
+
+
+industry_means <- ny_state %>% group_by(Industry) %>% summarise(mean_emp = mean(Employees), emp_sd = sd(Employees))
+industry_means$emp_sd[is.na(industry_means$emp_sd)] <- 0
+industry_means
+
+
+ggplot(industry_means, aes(x=reorder(Industry, mean_emp),y=mean_emp)) +
+  geom_bar(stat='identity', color = 'black', fill="tomato3") +
+  geom_errorbar(aes(ymin = mean_emp - emp_sd, ymax = mean_emp + emp_sd), width=0.4) +
+  theme(legend.position="none") +
+      labs(title="Number of Employees By Industry in NY State",
+         subtitle="5000 Fastest Growing Companies by Industry",
+         caption="Source: Inc Magazine",
+         y="Number of Employees", 
+         x="") +
+  coord_flip() +
+  theme_classic()
+```
+
+
+
+
+## Question 3
+
+Now imagine you work for an investor and want to see which industries generate the most revenue per employee. Create a chart that makes this information clear. Once again, the distribution per industry should be shown.
+
+
+
+```{r}
+inc <- inc %>% mutate(rev_per_empl = Revenue/Employees)
+rev_per_industry <- inc %>% filter(complete.cases(.)) %>% group_by(Industry) %>% filter(!(abs(rev_per_empl - median(rev_per_empl)) > 1.5*IQR(rev_per_empl))) %>% summarise(revenue_per_employee = mean(rev_per_empl), rev_sd = sd(rev_per_empl))
+rev_per_industry
+
+ggplot(data = rev_per_industry, aes(x=reorder(Industry,revenue_per_employee),y = revenue_per_employee))+ 
+  geom_bar(stat="identity",  fill="tomato3")+
+  geom_text(aes(label=sprintf("$%0.0f",round(revenue_per_employee, digits=0))), fontface="bold",  vjust=0.5, size=3, position=position_dodge(width = 0.5), hjust=0)+
+  theme_minimal()+
+  theme(axis.text.y=element_text(size=12, vjust=0.5))+
+  theme(axis.text.x=element_text(size=12, vjust=0.5))+
+  labs( x="Industry", y="Revenue per employee")+
+  coord_flip()+
+  ggtitle("Distribution of Revenue per Employee by Industry")
+```
+
+<div class="tocify-extend-page" data-unique="tocify-extend-page" style="height: 0;"></div>

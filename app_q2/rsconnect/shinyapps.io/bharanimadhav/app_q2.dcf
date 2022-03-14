@@ -1,0 +1,13 @@
+name: app_q2
+title: app_q2
+username:
+account: bharanimadhav
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5844021
+bundleId: 5678990
+url: https://bharanimadhav.shinyapps.io/app_q2/
+when: 1647216354.93533
+lastSyncTime: 1647216354.93533
+asMultiple: FALSE
+asStatic: FALSE
